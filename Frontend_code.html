@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Campus Transport Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style> #map { height: 500px; width: 100%; } </style>
+</head>
+<body>
+    <h1>Live Campus Bus Tracker</h1>
+    <div id="map"></div>
+    <div id="info">
+        <p>Bus Status: <span id="status">Waiting...</span></p>
+        <p>Occupancy: <span id="occ">0</span> people</p>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const map = L.map('map').setView([5.34, -4.02], 15); // Adjust to your campus lat/lng
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        const socket = io();
+        const markers = {};
+
+        function makePopup(id, status, occ) {
+            return `<b>${id}</b><br>Status: ${status || 'Unknown'}<br>Occupancy: ${occ || 0} people`;
+        }
+
+        // Handle initial snapshot
+        socket.on('initialBuses', (list) => {
+            list.forEach(b => {
+                const id = b.id;
+                markers[id] = L.marker([b.lat, b.lng]).addTo(map).bindPopup(makePopup(id, b.status, b.occupancy));
+            });
+        });
+
+        // Listen for live location updates
+        socket.on('busMoved', (data) => {
+            const id = data.id || data.busId;
+            const lat = data.lat;
+            const lng = data.lng;
+            if (!id || lat == null || lng == null) return;
+            if (!markers[id]) {
+                markers[id] = L.marker([lat, lng]).addTo(map).bindPopup(makePopup(id));
+            } else {
+                markers[id].setLatLng([lat, lng]);
+            }
+        });
+
+        // Listen for occupancy and status reports
+        socket.on('statusUpdate', (data) => {
+            // Update global status display if the message is relevant, and update marker popup if present
+            document.getElementById('status').innerText = data.status || 'Unknown';
+            document.getElementById('occ').innerText = data.occupancy != null ? data.occupancy : '0';
+            const id = data.id || data.busId;
+            if (id && markers[id]) {
+                markers[id].bindPopup(makePopup(id, data.status, data.occupancy));
+            }
+        });
+    </script>
+</body>
+</html>

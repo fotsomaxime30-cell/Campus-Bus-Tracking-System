@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CampusRide — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --ink: #0a0e1a;
+    --paper: #f7f5f0;
+    --gold: #f0b429;
+    --gold-dark: #c98a00;
+    --teal: #0d9488;
+    --teal-light: #ccfbf1;
+    --red: #ef4444;
+    --card: #ffffff;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --shadow: 0 20px 60px rgba(10,14,26,0.12);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Animated background */
+  .bg-scene {
+    position: fixed; inset: 0; z-index: 0;
+    background: radial-gradient(ellipse 80% 60% at 20% 50%, #1a2744 0%, var(--ink) 70%);
+  }
+  .bg-scene::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  .orb {
+    position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.15;
+    animation: drift 8s ease-in-out infinite alternate;
+  }
+  .orb-1 { width: 500px; height: 500px; background: var(--teal); top: -100px; left: -100px; }
+  .orb-2 { width: 400px; height: 400px; background: var(--gold); bottom: -80px; right: 10%; animation-delay: -4s; }
+  .orb-3 { width: 300px; height: 300px; background: #6366f1; top: 40%; left: 40%; animation-delay: -2s; }
+
+  @keyframes drift {
+    from { transform: translate(0,0) scale(1); }
+    to   { transform: translate(30px, 20px) scale(1.05); }
+  }
+
+  /* Road lines animation */
+  .road-lines {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 4px;
+    background: repeating-linear-gradient(90deg, var(--gold) 0, var(--gold) 40px, transparent 40px, transparent 80px);
+    animation: roadscroll 2s linear infinite;
+    opacity: 0.3;
+  }
+  @keyframes roadscroll { from { background-position: 0; } to { background-position: 80px; } }
+
+  /* Layout */
+  .container {
+    position: relative; z-index: 1;
+    display: flex; width: 100%; min-height: 100vh;
+  }
+
+  /* Left panel */
+  .hero {
+    flex: 1; display: flex; flex-direction: column;
+    justify-content: center; padding: 60px 80px;
+    animation: slideInLeft 0.8s cubic-bezier(0.16,1,0.3,1) both;
+  }
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-40px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .logo-mark {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 70px;
+  }
+  .logo-icon {
+    width: 48px; height: 48px; background: var(--gold);
+    border-radius: 14px; display: flex; align-items: center; justify-content: center;
+    font-size: 24px; box-shadow: 0 8px 24px rgba(240,180,41,0.4);
+  }
+  .logo-name {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: 22px; color: white; letter-spacing: -0.5px;
+  }
+  .logo-name span { color: var(--gold); }
+
+  .hero-title {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: clamp(38px, 5vw, 58px); line-height: 1.05;
+    color: white; margin-bottom: 24px; letter-spacing: -1.5px;
+  }
+  .hero-title .accent { color: var(--gold); }
+  .hero-title .accent-teal { color: #2dd4bf; }
+
+  .hero-sub {
+    color: rgba(255,255,255,0.5); font-size: 16px; line-height: 1.7;
+    max-width: 380px; font-weight: 300;
+  }
+
+  .stats {
+    display: flex; gap: 40px; margin-top: 60px;
+  }
+  .stat-item { }
+  .stat-num {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 28px; color: white;
+  }
+  .stat-label {
+    font-size: 12px; color: rgba(255,255,255,0.4);
+    text-transform: uppercase; letter-spacing: 1px; margin-top: 2px;
+  }
+
+  /* Bus illustration */
+  .bus-visual {
+    margin-top: 50px; opacity: 0.12;
+    font-size: 120px; line-height: 1;
+    filter: saturate(0) brightness(10);
+    animation: busFloat 3s ease-in-out infinite alternate;
+  }
+  @keyframes busFloat {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-12px); }
+  }
+
+  /* Right panel — login card */
+  .login-panel {
+    width: 480px; min-height: 100vh;
+    background: var(--paper);
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 60px 50px;
+    animation: slideInRight 0.8s cubic-bezier(0.16,1,0.3,1) 0.1s both;
+  }
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(40px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .login-header { margin-bottom: 40px; }
+  .login-greeting {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 30px; color: var(--ink); letter-spacing: -0.8px; margin-bottom: 8px;
+  }
+  .login-sub { color: var(--muted); font-size: 14px; font-weight: 300; }
+
+  /* Role selector */
+  .role-label {
+    font-size: 12px; font-weight: 500; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;
+  }
+  .role-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 32px;
+  }
+  .role-btn {
+    border: 2px solid var(--border); background: white;
+    border-radius: 12px; padding: 16px 10px; cursor: pointer;
+    text-align: center; transition: all 0.2s ease; position: relative;
+  }
+  .role-btn:hover { border-color: var(--teal); transform: translateY(-2px); }
+  .role-btn.active {
+    border-color: var(--teal); background: var(--teal-light);
+    box-shadow: 0 0 0 3px rgba(13,148,136,0.15);
+  }
+  .role-btn .role-icon { font-size: 26px; display: block; margin-bottom: 6px; }
+  .role-btn .role-text {
+    font-size: 12px; font-weight: 500; color: var(--ink);
+    font-family: 'Syne', sans-serif;
+  }
+  .role-btn.active .role-text { color: var(--teal); }
+
+  /* Form */
+  .field { margin-bottom: 20px; }
+  .field label {
+    display: block; font-size: 12px; font-weight: 500;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
+  }
+  .field input {
+    width: 100%; padding: 14px 18px;
+    border: 2px solid var(--border); border-radius: 12px;
+    font-family: 'DM Sans', sans-serif; font-size: 15px; color: var(--ink);
+    background: white; transition: all 0.2s ease; outline: none;
+  }
+  .field input:focus { border-color: var(--teal); box-shadow: 0 0 0 4px rgba(13,148,136,0.1); }
+  .field input::placeholder { color: #c4c4c4; }
+
+  .login-btn {
+    width: 100%; padding: 16px;
+    background: var(--ink); color: white;
+    border: none; border-radius: 12px; cursor: pointer;
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 16px; letter-spacing: 0.3px;
+    transition: all 0.25s ease; position: relative; overflow: hidden;
+    margin-top: 8px;
+  }
+  .login-btn::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, var(--teal), var(--gold));
+    opacity: 0; transition: opacity 0.25s ease;
+  }
+  .login-btn:hover::after { opacity: 1; }
+  .login-btn span { position: relative; z-index: 1; }
+  .login-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(10,14,26,0.3); }
+  .login-btn:active { transform: translateY(0); }
+
+  .divider {
+    display: flex; align-items: center; gap: 16px;
+    margin: 24px 0; color: var(--muted); font-size: 12px;
+  }
+  .divider::before, .divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  .demo-btns { display: flex; gap: 10px; }
+  .demo-btn {
+    flex: 1; padding: 12px; border: 2px solid var(--border);
+    background: white; border-radius: 10px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    color: var(--muted); transition: all 0.2s ease;
+  }
+  .demo-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+  .error-msg {
+    background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c;
+    border-radius: 10px; padding: 12px 16px; font-size: 14px;
+    margin-bottom: 16px; display: none; animation: shake 0.4s ease;
+  }
+  @keyframes shake {
+    0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)}
+  }
+
+  /* Loading overlay */
+  .loader {
+    position: fixed; inset: 0; z-index: 999;
+    background: var(--ink); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 20px;
+    transition: opacity 0.5s ease; pointer-events: none; opacity: 0;
+  }
+  .loader.active { opacity: 1; pointer-events: all; }
+  .loader-bus { font-size: 60px; animation: busFloat 0.5s ease-in-out infinite alternate; }
+  .loader-text {
+    font-family: 'Syne', sans-serif; color: white; font-size: 16px;
+    letter-spacing: 2px; text-transform: uppercase; opacity: 0.6;
+  }
+  .loader-bar {
+    width: 200px; height: 3px; background: rgba(255,255,255,0.1);
+    border-radius: 2px; overflow: hidden;
+  }
+  .loader-fill {
+    height: 100%; background: var(--gold);
+    border-radius: 2px; animation: loadFill 1.5s ease forwards;
+  }
+  @keyframes loadFill { from{width:0} to{width:100%} }
+
+  @media (max-width: 900px) {
+    .hero { display: none; }
+    .login-panel { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-scene">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <div class="road-lines"></div>
+</div>
+
+<div class="loader" id="loader">
+  <div class="loader-bus">🚌</div>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+  <div class="loader-text">Loading your dashboard…</div>
+</div>
+
+<div class="container">
+  <!-- Left hero -->
+  <div class="hero">
+    <div class="logo-mark">
+      <div class="logo-icon">🚌</div>
+      <div class="logo-name">Campus<span>Ride</span></div>
+    </div>
+    <h1 class="hero-title">
+      Track every<br>
+      <span class="accent">bus</span> on<br>
+      <span class="accent-teal">campus.</span>
+    </h1>
+    <p class="hero-sub">
+      Real-time GPS tracking, live occupancy data, and instant incident reporting — all in one platform for students, staff, and drivers.
+    </p>
+    <div class="stats">
+      <div class="stat-item">
+        <div class="stat-num">12</div>
+        <div class="stat-label">Active Buses</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">340+</div>
+        <div class="stat-label">Daily Riders</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">98%</div>
+        <div class="stat-label">Uptime</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right login -->
+  <div class="login-panel">
+    <div class="login-header">
+      <div class="login-greeting">Welcome back 👋</div>
+      <div class="login-sub">Sign in to your CampusRide account</div>
+    </div>
+
+    <div class="role-label">I am a…</div>
+    <div class="role-grid">
+      <button class="role-btn active" onclick="selectRole('student', this)" id="role-student">
+        <span class="role-icon">🎓</span>
+        <span class="role-text">Student</span>
+      </button>
+      <button class="role-btn" onclick="selectRole('staff', this)" id="role-staff">
+        <span class="role-icon">👔</span>
+        <span class="role-text">Staff</span>
+      </button>
+      <button class="role-btn" onclick="selectRole('driver', this)" id="role-driver">
+        <span class="role-icon">🚌</span>
+        <span class="role-text">Driver</span>
+      </button>
+    </div>
+
+    <div class="error-msg" id="error-msg">Invalid credentials. Please try again.</div>
+
+    <div class="field">
+      <label>Email / ID</label>
+      <input type="text" id="username" placeholder="e.g. john.doe@campus.edu" autocomplete="username"/>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+
+    <button class="login-btn" onclick="doLogin()"><span>Sign In →</span></button>
+
+    <div class="divider">or try a demo</div>
+    <div class="demo-btns">
+      <button class="demo-btn" onclick="quickDemo('student')">Student Demo</button>
+      <button class="demo-btn" onclick="quickDemo('staff')">Staff Demo</button>
+      <button class="demo-btn" onclick="quickDemo('driver')">Driver Demo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentRole = 'student';
+
+  function selectRole(role, el) {
+    currentRole = role;
+    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  function doLogin() {
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value;
+    const err = document.getElementById('error-msg');
+    err.style.display = 'none';
+
+    if (!u || !p) {
+      err.textContent = 'Please enter your credentials.';
+      err.style.display = 'block'; return;
+    }
+    navigate(currentRole);
+  }
+
+  function quickDemo(role) {
+    selectRole(role, document.getElementById('role-' + role));
+    navigate(role);
+  }
+
+  function navigate(role) {
+    const loader = document.getElementById('loader');
+    loader.classList.add('active');
+    let dest;
+    if (role === 'driver') {
+      dest = 'driver_interface.html';
+    } else if (role === 'staff') {
+      dest = 'staff_interface.html';
+    } else {
+      dest = 'studentstaff_interface.html';
+    }
+    setTimeout(() => { window.location.href = dest; }, 1600);
+  }
+
+  // Enter key support
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>

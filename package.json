@@ -1,0 +1,18 @@
+
+{
+  "name": "campus-bus-tracker",
+  "version": "1.0.0",
+  "description": "Simple campus bus live tracker (demo)",
+  "main": "backend_code.js",
+  "scripts": {
+    "start": "node backend_code.js",
+    "sim": "node \"Bus location_code.js\" BUS-01"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "socket.io-client": "^4.7.2"
+  }
+}

@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CampusRide — Staff Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<style>
+:root {
+  --ink:        #07090f;
+  --surface:    #0f1322;
+  --surface-2:  #161b2e;
+  --surface-3:  #1d2440;
+  --border:     rgba(255,255,255,0.07);
+  --border-2:   rgba(255,255,255,0.13);
+  --text:       #e8eaf2;
+  --muted:      #6b7490;
+  --gold:       #f0b429;
+  --gold-glow:  rgba(240,180,41,0.18);
+  --teal:       #0fd9c0;
+  --teal-glow:  rgba(15,217,192,0.15);
+  --red:        #ff4d6d;
+  --red-glow:   rgba(255,77,109,0.18);
+  --amber:      #fb923c;
+  --amber-glow: rgba(251,146,60,0.18);
+  --green:      #34d399;
+  --green-glow: rgba(52,211,153,0.15);
+  --purple:     #a78bfa;
+
+  --status-onroute:  var(--teal);
+  --status-idle:     var(--gold);
+  --status-incident: var(--red);
+  --status-delay:    var(--amber);
+  --status-full:     var(--purple);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--ink);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px; height: 62px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+  backdrop-filter: blur(20px);
+}
+.topbar-left { display: flex; align-items: center; gap: 20px; }
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-mark {
+  width: 34px; height: 34px; background: var(--gold);
+  border-radius: 9px; display: flex; align-items: center; justify-content: center;
+  font-size: 17px; box-shadow: 0 0 18px var(--gold-glow);
+}
+.logo-text {
+  font-family: 'Syne', sans-serif; font-weight: 800;
+  font-size: 16px; letter-spacing: -0.3px; color: var(--text);
+}
+.logo-text span { color: var(--gold); }
+.badge-staff {
+  background: var(--surface-3); border: 1px solid var(--border-2);
+  border-radius: 6px; padding: 3px 10px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--teal); letter-spacing: 1px;
+}
+.topbar-right { display: flex; align-items: center; gap: 16px; }
+.conn-pill {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--surface-3); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 14px; font-size: 12px; color: var(--muted);
+}
+.conn-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green); box-shadow: 0 0 8px var(--green);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.conn-dot.offline { background: var(--red); box-shadow: 0 0 8px var(--red); animation: none; }
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; } 50% { opacity: 0.4; }
+}
+.btn-logout {
+  padding: 7px 18px; border-radius: 8px;
+  background: transparent; border: 1px solid var(--border-2);
+  color: var(--muted); font-size: 13px; cursor: pointer;
+  transition: all 0.2s ease; font-family: 'DM Sans', sans-serif;
+}
+.btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+/* ── LAYOUT ── */
+.workspace {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  grid-template-rows: auto 1fr;
+  height: calc(100vh - 62px);
+  overflow: hidden;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  grid-row: 1 / -1;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-header {
+  padding: 20px 22px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-title {
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 12px;
+}
+.search-box {
+  position: relative;
+}
+.search-box input {
+  width: 100%; padding: 9px 14px 9px 36px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-size: 13px;
+  font-family: 'DM Sans', sans-serif; outline: none;
+  transition: border-color 0.2s;
+}
+.search-box input:focus { border-color: var(--teal); }
+.search-box input::placeholder { color: var(--muted); }
+.search-icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--muted); font-size: 14px;
+}
+
+.filter-row {
+  display: flex; gap: 6px; padding: 12px 22px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto; scrollbar-width: none;
+}
+.filter-row::-webkit-scrollbar { display: none; }
+.filter-chip {
+  flex-shrink: 0; padding: 4px 12px; border-radius: 20px;
+  font-size: 11px; font-weight: 500; cursor: pointer;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--muted); font-family: 'DM Sans', sans-serif;
+  transition: all 0.15s ease;
+}
+.filter-chip.active, .filter-chip:hover { background: var(--surface-3); border-color: var(--border-2); color: var(--text); }
+.filter-chip.active { font-weight: 600; }
+
+.bus-list { flex: 1; overflow-y: auto; padding: 10px 0; scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent; }
+.bus-list::-webkit-scrollbar { width: 4px; }
+.bus-list::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 2px; }
+
+.bus-card {
+  margin: 4px 10px; padding: 14px 16px;
+  border-radius: 12px; cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease; position: relative;
+  overflow: hidden;
+}
+.bus-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; border-radius: 3px 0 0 3px;
+  background: var(--status-color, var(--muted));
+  transition: background 0.3s;
+}
+.bus-card:hover { background: var(--surface-2); border-color: var(--border); }
+.bus-card.selected { background: var(--surface-3); border-color: var(--border-2); }
+.bus-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.bus-id {
+  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  font-weight: 500; color: var(--text); letter-spacing: 0.5px;
+}
+.status-badge {
+  display: flex; align-items: center; gap: 5px;
+  padding: 2px 9px; border-radius: 20px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.bus-meta { display: flex; gap: 14px; }
+.bus-meta-item { font-size: 11px; color: var(--muted); }
+.bus-meta-item strong { color: var(--text); font-size: 12px; }
+.occ-bar {
+  margin-top: 10px; height: 3px; background: var(--surface-3);
+  border-radius: 2px; overflow: hidden;
+}
+.occ-fill {
+  height: 100%; border-radius: 2px;
+  background: var(--status-color, var(--teal));
+  transition: width 0.5s ease;
+}
+
+/* ── STAT STRIP ── */
+.stat-strip {
+  padding: 16px 28px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 32px; align-items: center;
+}
+.stat-item { text-align: center; }
+.stat-num {
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 22px; color: var(--text);
+}
+.stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
+.stat-divider { width: 1px; height: 36px; background: var(--border); }
+
+/* ── MAIN AREA ── */
+.main-area {
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.map-container { flex: 1; position: relative; min-height: 0; }
+#map { height: 100%; width: 100%; }
+
+/* Leaflet dark override */
+.leaflet-tile { filter: brightness(0.8) saturate(0.6) hue-rotate(190deg); }
+.leaflet-container { background: var(--surface-2); }
+
+/* ── CONTROL PANEL (bottom drawer) ── */
+.control-panel {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 20px 28px;
+  display: flex; gap: 24px; align-items: flex-start;
+  flex-wrap: wrap;
+}
+.cp-section { flex: 1; min-width: 200px; }
+.cp-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--muted); margin-bottom: 10px; font-weight: 500;
+}
+.cp-bus-select {
+  width: 100%; padding: 10px 14px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-size: 14px;
+  font-family: 'DM Sans', sans-serif; outline: none; cursor: pointer;
+  transition: border-color 0.2s;
+}
+.cp-bus-select:focus { border-color: var(--teal); }
+.cp-bus-select option { background: var(--surface-2); }
+
+.status-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.status-btn {
+  display: flex; align-items: center; gap: 7px;
+  padding: 9px 16px; border-radius: 9px;
+  border: 1.5px solid transparent; cursor: pointer;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.4px;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s ease; white-space: nowrap;
+}
+.status-btn-onroute  { background: var(--teal-glow);  border-color: var(--teal);   color: var(--teal);   }
+.status-btn-idle     { background: var(--gold-glow);  border-color: var(--gold);   color: var(--gold);   }
+.status-btn-incident { background: var(--red-glow);   border-color: var(--red);    color: var(--red);    }
+.status-btn-delay    { background: var(--amber-glow); border-color: var(--amber);  color: var(--amber);  }
+.status-btn-full     { background: rgba(167,139,250,0.15); border-color: var(--purple); color: var(--purple); }
+.status-btn:hover { filter: brightness(1.2); transform: translateY(-1px); }
+.status-btn.active-status { box-shadow: 0 0 16px currentColor; filter: brightness(1.3); }
+
+.occ-row { display: flex; align-items: center; gap: 12px; }
+.occ-input {
+  width: 80px; padding: 9px 12px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-size: 14px;
+  font-family: 'JetBrains Mono', monospace; outline: none;
+  transition: border-color 0.2s; text-align: center;
+}
+.occ-input:focus { border-color: var(--teal); }
+.occ-slider {
+  flex: 1; -webkit-appearance: none; height: 4px;
+  border-radius: 2px; background: var(--surface-3); outline: none; cursor: pointer;
+}
+.occ-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px;
+  border-radius: 50%; background: var(--teal);
+  box-shadow: 0 0 10px var(--teal); cursor: pointer;
+}
+
+.cp-note-area {
+  width: 100%; padding: 10px 14px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-size: 13px;
+  font-family: 'DM Sans', sans-serif; outline: none; resize: none; height: 68px;
+  transition: border-color 0.2s; line-height: 1.5;
+}
+.cp-note-area:focus { border-color: var(--gold); }
+.cp-note-area::placeholder { color: var(--muted); }
+
+.btn-apply {
+  padding: 11px 28px; border-radius: 10px;
+  background: var(--gold); color: var(--ink);
+  border: none; cursor: pointer; font-weight: 700;
+  font-size: 14px; font-family: 'Syne', sans-serif;
+  transition: all 0.2s ease; align-self: flex-end; white-space: nowrap;
+  box-shadow: 0 4px 20px var(--gold-glow);
+}
+.btn-apply:hover { transform: translateY(-2px); box-shadow: 0 8px 28px var(--gold-glow); }
+.btn-apply:active { transform: translateY(0); }
+.btn-apply.success { background: var(--green); box-shadow: 0 4px 20px var(--green-glow); }
+
+/* ── TOAST ── */
+.toast-stack {
+  position: fixed; bottom: 28px; right: 28px;
+  display: flex; flex-direction: column; gap: 10px; z-index: 500;
+}
+.toast {
+  padding: 12px 20px; border-radius: 10px;
+  background: var(--surface-3); border: 1px solid var(--border-2);
+  font-size: 13px; display: flex; align-items: center; gap: 10px;
+  animation: toast-in 0.3s cubic-bezier(0.16,1,0.3,1) both;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  min-width: 260px; max-width: 340px;
+}
+.toast.success { border-color: var(--green); }
+.toast.error   { border-color: var(--red); }
+.toast.warning { border-color: var(--amber); }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── ACTIVITY LOG ── */
+.log-panel {
+  position: absolute; top: 12px; right: 12px;
+  width: 260px; max-height: 280px;
+  background: rgba(15,19,34,0.92); backdrop-filter: blur(16px);
+  border: 1px solid var(--border-2); border-radius: 12px;
+  overflow: hidden; z-index: 400;
+}
+.log-header {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
+  display: flex; align-items: center; gap: 8px;
+}
+.log-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 6px var(--teal); }
+.log-body { overflow-y: auto; max-height: 220px; padding: 8px 0; scrollbar-width: none; }
+.log-body::-webkit-scrollbar { display: none; }
+.log-entry {
+  padding: 7px 14px; font-size: 11px; line-height: 1.5; border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.log-entry:last-child { border-bottom: none; }
+.log-time { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
+.log-msg { color: var(--text); }
+.log-bus { color: var(--gold); font-family: 'JetBrains Mono', monospace; }
+
+/* ── MAP POPUP CUSTOM ── */
+.leaflet-popup-content-wrapper {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border-2) !important;
+  border-radius: 10px !important; box-shadow: 0 8px 30px rgba(0,0,0,0.5) !important;
+  color: var(--text) !important;
+}
+.leaflet-popup-tip { background: var(--surface-2) !important; }
+.leaflet-popup-content { font-family: 'DM Sans', sans-serif !important; font-size: 13px !important; margin: 12px 16px !important; }
+.popup-id { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+.popup-row { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.popup-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 860px) {
+  .workspace { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
+  .sidebar { grid-row: auto; height: 220px; border-right: none; border-bottom: 1px solid var(--border); }
+  .log-panel { display: none; }
+  .stat-strip { gap: 16px; padding: 12px 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── TOPBAR ── -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="logo">
+      <div class="logo-mark">🚌</div>
+      <div class="logo-text">Campus<span>Ride</span></div>
+    </div>
+    <div class="badge-staff">STAFF CONTROL</div>
+  </div>
+  <div class="topbar-right">
+    <div class="conn-pill">
+      <div class="conn-dot" id="conn-dot"></div>
+      <span id="conn-label">Connecting…</span>
+    </div>
+    <button class="btn-logout" onclick="window.location.href='Login_index.html'">← Logout</button>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">Fleet Overview</div>
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="Search bus ID or route…" oninput="filterBuses()"/>
+      </div>
+    </div>
+    <div class="filter-row" id="filterRow">
+      <button class="filter-chip active" data-filter="all" onclick="setFilter('all',this)">All</button>
+      <button class="filter-chip" data-filter="on-route" onclick="setFilter('on-route',this)">On Route</button>
+      <button class="filter-chip" data-filter="idle" onclick="setFilter('idle',this)">Idle</button>
+      <button class="filter-chip" data-filter="incident" onclick="setFilter('incident',this)">Incident</button>
+      <button class="filter-chip" data-filter="delay" onclick="setFilter('delay',this)">Delay</button>
+      <button class="filter-chip" data-filter="full" onclick="setFilter('full',this)">Full</button>
+    </div>
+    <div class="bus-list" id="busList"></div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <div class="main-area">
+    <!-- Stat strip -->
+    <div class="stat-strip" id="statStrip">
+      <div class="stat-item">
+        <div class="stat-num" id="s-total">–</div>
+        <div class="stat-label">Total Buses</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-num" style="color:var(--teal)" id="s-onroute">–</div>
+        <div class="stat-label">On Route</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-num" style="color:var(--red)" id="s-incident">–</div>
+        <div class="stat-label">Incidents</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-num" style="color:var(--gold)" id="s-idle">–</div>
+        <div class="stat-label">Idle</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-num" style="color:var(--amber)" id="s-riders">–</div>
+        <div class="stat-label">Riders Now</div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div class="map-container">
+      <div id="map"></div>
+      <!-- Activity Log overlay -->
+      <div class="log-panel">
+        <div class="log-header"><div class="log-dot"></div>Activity Log</div>
+        <div class="log-body" id="logBody"></div>
+      </div>
+    </div>
+
+    <!-- Control Panel -->
+    <div class="control-panel">
+      <!-- Bus selector -->
+      <div class="cp-section" style="min-width:160px;max-width:180px;">
+        <div class="cp-label">Target Bus</div>
+        <select class="cp-bus-select" id="cpBusSelect" onchange="onBusSelectChange()">
+          <option value="">— Pick bus —</option>
+        </select>
+      </div>
+
+      <!-- Status buttons -->
+      <div class="cp-section">
+        <div class="cp-label">Set Status</div>
+        <div class="status-btns">
+          <button class="status-btn status-btn-onroute"  onclick="selectStatus('On Route')" id="sbtn-on-route">🟢 On Route</button>
+          <button class="status-btn status-btn-idle"     onclick="selectStatus('Idle')"     id="sbtn-idle">🟡 Idle</button>
+          <button class="status-btn status-btn-incident" onclick="selectStatus('Incident')" id="sbtn-incident">🔴 Incident</button>
+          <button class="status-btn status-btn-delay"    onclick="selectStatus('Delay')"    id="sbtn-delay">🟠 Delay</button>
+          <button class="status-btn status-btn-full"     onclick="selectStatus('Full')"     id="sbtn-full">🟣 Full</button>
+        </div>
+      </div>
+
+      <!-- Occupancy -->
+      <div class="cp-section" style="min-width:200px;">
+        <div class="cp-label">Occupancy</div>
+        <div class="occ-row">
+          <input type="number" class="occ-input" id="cpOcc" min="0" max="60" value="0" oninput="syncSlider()"/>
+          <input type="range"  class="occ-slider" id="cpSlider" min="0" max="60" value="0" oninput="syncInput()"/>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="cp-section" style="min-width:180px;">
+        <div class="cp-label">Note / Incident Detail</div>
+        <textarea class="cp-note-area" id="cpNote" placeholder="e.g. Flat tyre on North Ring Road…"></textarea>
+      </div>
+
+      <!-- Apply -->
+      <div style="display:flex;align-items:flex-end;">
+        <button class="btn-apply" id="applyBtn" onclick="applyUpdate()">Apply Update</button>
+      </div>
+    </div>
+
+  </div><!-- /main-area -->
+</div><!-- /workspace -->
+
+<div class="toast-stack" id="toastStack"></div>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="/socket.io/socket.io.js" onerror="loadSocketFallback()"></script>
+<script>
+/* ─── SOCKET.IO GRACEFUL FALLBACK ─── */
+function loadSocketFallback() {
+  const s = document.createElement('script');
+  s.src = 'https://cdn.socket.io/4.7.2/socket.io.min.js';
+  document.head.appendChild(s);
+  s.onload = initApp;
+}
+
+/* ─── STATE ─── */
+const SERVER = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+  ? window.location.origin
+  : 'http://localhost:3000';
+
+let buses = {};            // id → {lat, lng, occupancy, status}
+let markers = {};          // id → Leaflet marker
+let map;
+let socket;
+let selectedBusId = null;
+let selectedStatus = null;
+let filterMode = 'all';
+let logEntries = [];
+
+/* ─── STATUS META ─── */
+const STATUS_META = {
+  'On Route': { color: '#0fd9c0', emoji: '🟢', cls: 'on-route' },
+  'Idle':     { color: '#f0b429', emoji: '🟡', cls: 'idle' },
+  'Incident': { color: '#ff4d6d', emoji: '🔴', cls: 'incident' },
+  'Delay':    { color: '#fb923c', emoji: '🟠', cls: 'delay' },
+  'Full':     { color: '#a78bfa', emoji: '🟣', cls: 'full' },
+};
+
+function getMeta(status) {
+  return STATUS_META[status] || { color: '#6b7490', emoji: '⚪', cls: 'unknown' };
+}
+
+/* ─── MAP INIT ─── */
+function initMap() {
+  map = L.map('map', { zoomControl: false }).setView([5.348, -4.011], 15);
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 19
+  }).addTo(map);
+}
+
+/* ─── MARKER ─── */
+function busIcon(bus) {
+  const meta = getMeta(bus.status);
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+      background:${meta.color};border:3px solid rgba(0,0,0,0.5);
+      box-shadow:0 0 14px ${meta.color};display:flex;align-items:center;justify-content:center;
+    "><span style="transform:rotate(45deg);font-size:16px;display:block;text-align:center;line-height:30px;">🚌</span></div>`,
+    iconSize: [36, 36], iconAnchor: [18, 36], popupAnchor: [0, -36]
+  });
+}
+
+function makePopupContent(id, bus) {
+  const meta = getMeta(bus.status);
+  const pct = Math.round((bus.occupancy / 60) * 100);
+  return `
+    <div class="popup-id">${id}</div>
+    <div class="popup-row"><div class="popup-dot" style="background:${meta.color}"></div><span>${meta.emoji} ${bus.status || 'Unknown'}</span></div>
+    <div style="margin:6px 0;font-size:12px;color:#6b7490">Occupancy: <strong style="color:#e8eaf2">${bus.occupancy || 0}</strong> / 60</div>
+    <div style="height:4px;background:#1d2440;border-radius:2px;margin-top:4px">
+      <div style="width:${pct}%;height:100%;background:${meta.color};border-radius:2px;transition:width 0.4s"></div>
+    </div>
+    <button onclick="quickSelectBus('${id}')" style="
+      margin-top:10px;width:100%;padding:7px;background:${meta.color}22;
+      border:1px solid ${meta.color};border-radius:6px;color:${meta.color};
+      font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif
+    ">Edit This Bus</button>`;
+}
+
+function upsertMarker(id, bus) {
+  if (!bus.lat || !bus.lng) return;
+  if (markers[id]) {
+    markers[id].setLatLng([bus.lat, bus.lng]);
+    markers[id].setIcon(busIcon(bus));
+    markers[id].setPopupContent(makePopupContent(id, bus));
+  } else {
+    markers[id] = L.marker([bus.lat, bus.lng], { icon: busIcon(bus) })
+      .addTo(map)
+      .bindPopup(makePopupContent(id, bus));
+  }
+}
+
+/* ─── BUS LIST RENDER ─── */
+function renderBusList() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const list = document.getElementById('busList');
+  list.innerHTML = '';
+
+  const entries = Object.entries(buses).filter(([id, bus]) => {
+    if (filterMode !== 'all') {
+      const statusKey = (bus.status || '').toLowerCase().replace(' ', '-');
+      if (statusKey !== filterMode) return false;
+    }
+    if (search && !id.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  if (!entries.length) {
+    list.innerHTML = `<div style="text-align:center;padding:30px 16px;color:var(--muted);font-size:13px">No buses match</div>`;
+    return;
+  }
+
+  entries.forEach(([id, bus]) => {
+    const meta = getMeta(bus.status);
+    const pct = Math.round(Math.min(100, (bus.occupancy / 60) * 100));
+    const card = document.createElement('div');
+    card.className = 'bus-card' + (id === selectedBusId ? ' selected' : '');
+    card.style.setProperty('--status-color', meta.color);
+    card.innerHTML = `
+      <div class="bus-card-header">
+        <span class="bus-id">${id}</span>
+        <span class="status-badge" style="background:${meta.color}22;color:${meta.color};border:1px solid ${meta.color}44">
+          ${meta.emoji} ${bus.status || 'Unknown'}
+        </span>
+      </div>
+      <div class="bus-meta">
+        <div class="bus-meta-item">Occ: <strong>${bus.occupancy || 0}</strong></div>
+        <div class="bus-meta-item">Lat: <strong>${(bus.lat||0).toFixed(4)}</strong></div>
+        <div class="bus-meta-item">Lng: <strong>${(bus.lng||0).toFixed(4)}</strong></div>
+      </div>
+      <div class="occ-bar"><div class="occ-fill" style="width:${pct}%;background:${meta.color}"></div></div>`;
+    card.onclick = () => { selectBus(id); if (markers[id]) map.flyTo([bus.lat, bus.lng], 16, { duration: 1 }); };
+    list.appendChild(card);
+  });
+}
+
+/* ─── STATS ─── */
+function updateStats() {
+  const arr = Object.values(buses);
+  document.getElementById('s-total').textContent   = arr.length;
+  document.getElementById('s-onroute').textContent = arr.filter(b => b.status === 'On Route').length;
+  document.getElementById('s-incident').textContent= arr.filter(b => b.status === 'Incident').length;
+  document.getElementById('s-idle').textContent    = arr.filter(b => b.status === 'Idle').length;
+  document.getElementById('s-riders').textContent  = arr.reduce((n, b) => n + (b.occupancy || 0), 0);
+}
+
+/* ─── CONTROL PANEL SELECT ─── */
+function selectBus(id) {
+  selectedBusId = id;
+  const sel = document.getElementById('cpBusSelect');
+  sel.value = id;
+  const bus = buses[id];
+  if (bus) {
+    selectStatus(bus.status || 'On Route');
+    document.getElementById('cpOcc').value    = bus.occupancy || 0;
+    document.getElementById('cpSlider').value = bus.occupancy || 0;
+  }
+  renderBusList();
+}
+
+function quickSelectBus(id) { selectBus(id); }
+
+function onBusSelectChange() {
+  const id = document.getElementById('cpBusSelect').value;
+  if (id) selectBus(id);
+}
+
+function selectStatus(status) {
+  selectedStatus = status;
+  document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active-status'));
+  const key = status.toLowerCase().replace(' ', '-');
+  const el = document.getElementById('sbtn-' + key);
+  if (el) el.classList.add('active-status');
+}
+
+function syncSlider() {
+  document.getElementById('cpSlider').value = document.getElementById('cpOcc').value;
+}
+function syncInput() {
+  document.getElementById('cpOcc').value = document.getElementById('cpSlider').value;
+}
+
+/* ─── APPLY UPDATE ─── */
+async function applyUpdate() {
+  const busId = document.getElementById('cpBusSelect').value;
+  if (!busId) { toast('Select a bus first', 'warning'); return; }
+  if (!selectedStatus) { toast('Select a status', 'warning'); return; }
+
+  const occupancy = parseInt(document.getElementById('cpOcc').value, 10);
+  const note = document.getElementById('cpNote').value.trim();
+  const btn = document.getElementById('applyBtn');
+
+  btn.textContent = 'Updating…'; btn.disabled = true;
+
+  try {
+    const res = await fetch(`${SERVER}/api/report-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ busId, status: selectedStatus, occupancy })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    // Optimistic local update
+    if (buses[busId]) {
+      buses[busId].status = selectedStatus;
+      buses[busId].occupancy = occupancy;
+    }
+    upsertMarker(busId, buses[busId]);
+    renderBusList();
+    updateStats();
+    updateCpSelect();
+    addLog(busId, selectedStatus, occupancy, note);
+    toast(`${busId} → ${selectedStatus} (${occupancy} riders)`, 'success');
+    btn.textContent = '✓ Applied'; btn.classList.add('success');
+    setTimeout(() => { btn.textContent = 'Apply Update'; btn.classList.remove('success'); btn.disabled = false; }, 2000);
+  } catch (err) {
+    // Offline mode — update locally so staff can still use the UI
+    if (buses[busId]) {
+      buses[busId].status = selectedStatus;
+      buses[busId].occupancy = occupancy;
+    }
+    upsertMarker(busId, buses[busId] || {});
+    renderBusList(); updateStats();
+    addLog(busId, selectedStatus, occupancy, note);
+    toast(`Offline — local update saved (${err.message})`, 'warning');
+    btn.textContent = 'Apply Update'; btn.disabled = false;
+  }
+}
+
+/* ─── CP SELECT POPULATE ─── */
+function updateCpSelect() {
+  const sel = document.getElementById('cpBusSelect');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Pick bus —</option>';
+  Object.keys(buses).sort().forEach(id => {
+    const opt = document.createElement('option');
+    opt.value = id; opt.textContent = `${id} — ${buses[id].status || '?'}`;
+    if (id === cur) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+/* ─── FILTER ─── */
+function setFilter(mode, el) {
+  filterMode = mode;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderBusList();
+}
+function filterBuses() { renderBusList(); }
+
+/* ─── ACTIVITY LOG ─── */
+function addLog(busId, status, occ, note) {
+  const now = new Date();
+  const time = now.toTimeString().slice(0,8);
+  logEntries.unshift({ time, busId, status, occ, note });
+  if (logEntries.length > 40) logEntries.pop();
+  renderLog();
+}
+function renderLog() {
+  const body = document.getElementById('logBody');
+  body.innerHTML = logEntries.map(e => `
+    <div class="log-entry">
+      <span class="log-time">${e.time}</span>
+      <span class="log-msg"><span class="log-bus">${e.busId}</span> → ${getMeta(e.status).emoji} ${e.status}, ${e.occ} riders${e.note ? ` — <em style="color:var(--muted)">${e.note}</em>` : ''}</span>
+    </div>`).join('');
+}
+
+/* ─── TOAST ─── */
+function toast(msg, type = 'success') {
+  const stack = document.getElementById('toastStack');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️';
+  el.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+  stack.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+/* ─── SOCKET INIT ─── */
+function initSocket() {
+  try {
+    socket = io(SERVER, { transports: ['websocket', 'polling'] });
+
+    socket.on('connect', () => {
+      document.getElementById('conn-dot').classList.remove('offline');
+      document.getElementById('conn-label').textContent = 'Live';
+    });
+    socket.on('disconnect', () => {
+      document.getElementById('conn-dot').classList.add('offline');
+      document.getElementById('conn-label').textContent = 'Offline';
+    });
+
+    socket.on('initialBuses', (list) => {
+      list.forEach(b => {
+        buses[b.id] = { lat: b.lat, lng: b.lng, occupancy: b.occupancy, status: b.status };
+        upsertMarker(b.id, buses[b.id]);
+      });
+      renderBusList(); updateStats(); updateCpSelect();
+    });
+
+    socket.on('busMoved', (data) => {
+      const id = data.id || data.busId;
+      if (!id) return;
+      if (!buses[id]) buses[id] = { occupancy: 0, status: 'On Route' };
+      buses[id].lat = data.lat; buses[id].lng = data.lng;
+      upsertMarker(id, buses[id]);
+      renderBusList(); updateStats();
+    });
+
+    socket.on('busUpdate', (data) => {
+      const id = data.id;
+      if (!id) return;
+      if (!buses[id]) buses[id] = {};
+      Object.assign(buses[id], data);
+      upsertMarker(id, buses[id]);
+      renderBusList(); updateStats(); updateCpSelect();
+      if (id === selectedBusId) {
+        document.getElementById('cpOcc').value    = buses[id].occupancy || 0;
+        document.getElementById('cpSlider').value = buses[id].occupancy || 0;
+        selectStatus(buses[id].status || 'On Route');
+      }
+    });
+
+    socket.on('statusUpdate', (data) => {
+      const id = data.id || data.busId;
+      if (!id || !buses[id]) return;
+      buses[id].status    = data.status;
+      buses[id].occupancy = data.occupancy;
+      upsertMarker(id, buses[id]);
+      renderBusList(); updateStats(); updateCpSelect();
+    });
+
+  } catch (e) {
+    console.warn('Socket.IO not available, running in demo mode.');
+    loadDemoData();
+  }
+}
+
+/* ─── DEMO DATA (offline fallback) ─── */
+function loadDemoData() {
+  const demo = {
+    'BUS-01': { lat: 5.348,  lng: -4.011, occupancy: 18, status: 'On Route' },
+    'BUS-02': { lat: 5.350,  lng: -4.015, occupancy: 3,  status: 'Idle' },
+    'BUS-03': { lat: 5.3455, lng: -4.009, occupancy: 45, status: 'Full' },
+    'BUS-04': { lat: 5.347,  lng: -4.018, occupancy: 0,  status: 'Incident' },
+    'BUS-05': { lat: 5.352,  lng: -4.013, occupancy: 22, status: 'Delay' },
+  };
+  Object.assign(buses, demo);
+  Object.entries(buses).forEach(([id, b]) => upsertMarker(id, b));
+  renderBusList(); updateStats(); updateCpSelect();
+  document.getElementById('conn-dot').classList.add('offline');
+  document.getElementById('conn-label').textContent = 'Demo Mode';
+  toast('Running in demo mode — server not connected', 'warning');
+}
+
+/* ─── BOOT ─── */
+function initApp() {
+  initMap();
+  initSocket();
+}
+
+if (typeof io !== 'undefined') {
+  initApp();
+} else {
+  window.addEventListener('load', () => {
+    if (typeof io !== 'undefined') initApp();
+    else { initMap(); loadDemoData(); }
+  });
+}
+</script>
+</body>
+</html>
